@@ -1,65 +1,54 @@
-import atexit
 import inspect
 import argparse
 
 
-functions = dict()
-description = ""
+class cli(object):
+    def __init__(self, desc=""):
+        self.description = desc
+        self.functions = dict()
 
+    def setDescription(self, desc):
+        self.description = desc
 
-def setDescription(desc):
-    global description
-    description = desc
+    # decorator for runnable functions
+    def command(self, f):
+        fName = f.__name__
+        if fName in self.functions:
+            print("Function {} already registered, overwriting it..")
 
+        self.functions[fName] = f
+        return f
 
-# decorator for runnable functions
-def command(f):
-    fName = f.__name__
-    if fName in functions:
-        print("Function {} already registered, overwriting it..")
+    def __enter__(self):
+        return self
 
-    functions[fName] = f
-    return f
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if len(self.functions) > 0:
+            self.parse_args()
 
+    def parse_args(self):
+        parser = argparse.ArgumentParser(description=self.description)
+        subparsers = parser.add_subparsers(help="Select one of the following subcommands:", dest='command', metavar="subcommand")
+        subparsers.required = True
 
-def parse_args():
-    parser = argparse.ArgumentParser(description=description)
-    subparsers = parser.add_subparsers(help="Select one of the following subcommands:", dest='command', metavar="subcommand")
-    subparsers.required = True
+        for fName, f in self.functions.items():
+            sub_parser = subparsers.add_parser(fName, help=f.__doc__, description=f.__doc__)
+            for param in inspect.signature(f).parameters.values():
+                tpe = param.annotation
+                if tpe is inspect.Parameter.empty:
+                    tpe = str
+                if param.default is not inspect.Parameter.empty:
+                    prefix = "-" if len(param.name) == 1 else "--"
+                    sub_parser.add_argument(prefix + param.name,
+                                            help="type: {}, default={}".format(tpe.__name__, param.default),
+                                            type=tpe, default=param.default)
+                else:
+                    sub_parser.add_argument(param.name, help="type: " + tpe.__name__,
+                                            type=tpe)
 
-    for fName, f in functions.items():
-        sub_parser = subparsers.add_parser(fName, help=f.__doc__, description=f.__doc__)
-        for param in inspect.signature(f).parameters.values():
-            tpe = param.annotation
-            if tpe is inspect.Parameter.empty:
-                tpe = str
-            if param.default is not inspect.Parameter.empty:
-                prefix = "-" if len(param.name) == 1 else "--"
-                sub_parser.add_argument(prefix + param.name,
-                                        help="type: {}, default={}".format(tpe.__name__, param.default),
-                                        type=tpe, default=param.default)
-            else:
-                sub_parser.add_argument(param.name, help="type: " + tpe.__name__,
-                                        type=tpe)
-
-    cmd_args = parser.parse_args()
-    fName = cmd_args.command
-    f = functions[fName]
-    args = cmd_args._get_args()
-    kwargs = {n: v for n, v in cmd_args._get_kwargs() if n != "command"}
-    f(*args, **kwargs)
-
-
-def main():
-    try:
-        if len(functions) > 0:
-            parse_args()
-    except argparse.ArgumentError:
-        pass
-    except SystemExit:
-        pass
-
-
-# if imported
-if __name__ != "__main__":
-    atexit.register(main)
+        cmd_args = parser.parse_args()
+        fName = cmd_args.command
+        f = self.functions[fName]
+        args = cmd_args._get_args()
+        kwargs = {n: v for n, v in cmd_args._get_kwargs() if n != "command"}
+        f(*args, **kwargs)

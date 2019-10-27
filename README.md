@@ -1,7 +1,7 @@
 # bacli
 Born Again Command Line Interface.
 
-Bacli is a module that wraps the command line argument parsing functionality of argparse for ease of use. Any Python function can be transformed into an entry point for the program. Simply add the `bacli.command` decorator, and you will be able to call the function directly from the command line (with parameters, documentation and correct types!).
+Bacli is a module that wraps the command line argument parsing functionality of argparse for ease of use. Any Python function can be transformed into an entry point for the program. Simply add the `command` decorator, and you will be able to call the function directly from the command line (with parameters, documentation and correct types!).
 
 ### Usage
 
@@ -10,19 +10,20 @@ Bacli is a module that wraps the command line argument parsing functionality of 
 
 import bacli
 
-bacli.setDescription(__doc__)
+with bacli.cli(__doc__) as cli:
 
-@bacli.command
-def run():
-    """ Run the model. """
-    print("Running")
+    @cli.command
+    def run():
+        """ Run the model. """
+        print("Running")
 
-@bacli.command
-def train(iterations: int, batch_size: int=32):
-    """ Train the model. """
-    print("Training model")
-    print("{} iterations".format(iterations))
-    print("batch size of {}".format(batch_size))
+
+    @cli.command
+    def train(iterations: int, batch_size: int=32):
+        """ Train the model. """
+        print("Training model")
+        print("{} iterations".format(iterations))
+        print("batch size of {}".format(batch_size))
 
 ```
 
